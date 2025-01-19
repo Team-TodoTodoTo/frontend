@@ -11,18 +11,12 @@ class TodoIndex extends StatefulWidget {
 class _TodoIndexState extends State<TodoIndex> {
   List<Map<String, dynamic>> tasks = [
     {"title": "자고 싶어요", "subtitle": "카테고리 이름", "isChecked": true},
-    {"title": "언제 다해", "subtitle": "카테고리 이름", "isChecked": false},
+    {"title": "언제 다 해", "subtitle": "카테고리 이름", "isChecked": false},
   ];
 
   void _toggleTask(int index) {
     setState(() {
       tasks[index]['isChecked'] = !tasks[index]['isChecked'];
-    });
-  }
-
-  void _deleteTask(int index) {
-    setState(() {
-      tasks.removeAt(index);
     });
   }
 
@@ -98,18 +92,14 @@ class _TodoIndexState extends State<TodoIndex> {
 
   Widget _buildAddTaskButton() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      width: double.infinity, // 가로로 꽉 차게 설정
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.grey.shade300,
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(
-        child: Text(
-          "+ 할 일을 추가하세요.",
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text("+ 할 일을 추가하세요.", style: TextStyle(color: Colors.grey)),
       ),
     );
   }

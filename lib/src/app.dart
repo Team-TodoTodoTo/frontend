@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:todotodoto/src/screens/todo/screen.dart';
+import 'layout/main_layout.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -9,10 +9,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      routes: {
-        '/': (context) => TodoScreen(),
-      },
-      initialRoute: '/',
+      home: const MainLayout(),
     );
   }
 }
