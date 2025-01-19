@@ -48,6 +48,7 @@ class _MainLayoutState extends State<MainLayout> {
           BottomNavigationBarItem(
               icon: Icon(Icons.calendar_month), label: '캘린더'),
         ],
+        backgroundColor: const Color(0xFFF5F7FD),
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,

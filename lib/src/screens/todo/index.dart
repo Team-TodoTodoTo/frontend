@@ -25,10 +25,13 @@ class _TodoIndexState extends State<TodoIndex> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        SectionContainer(
-          title: "오늘",
-          date: "1.16. (목)",
-          children: [_buildAddTaskButton()],
+        Padding(
+          padding: const EdgeInsets.only(bottom: 20, top: 10), // 간격 추가
+          child: SectionContainer(
+            title: "오늘",
+            date: "1.16. (목)",
+            children: [_buildAddTaskButton()],
+          ),
         ),
         SectionContainer(
           title: "이번주 할일",
@@ -50,7 +53,7 @@ class _TodoIndexState extends State<TodoIndex> {
   Widget _buildTaskItem(
       int index, String title, String subtitle, bool isChecked) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.blue.shade100,
