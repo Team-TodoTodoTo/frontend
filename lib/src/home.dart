@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import "./screens/todo/index.dart";
 
 final List<BottomNavigationBarItem> myTabs = [
   BottomNavigationBarItem(icon: Icon(Icons.home), label: 'home'),
@@ -6,7 +7,7 @@ final List<BottomNavigationBarItem> myTabs = [
 ];
 
 final List<Widget> myTabItems = [
-  Center(child: Text('홈')),
+  const TodoIndex(),
   Center(child: Text('캘린더')),
 ];
 
