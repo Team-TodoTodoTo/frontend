@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import "./screens/todo/index.dart";
+import "index.dart";
 
 final List<BottomNavigationBarItem> myTabs = [
   BottomNavigationBarItem(icon: Icon(Icons.home), label: 'home'),
@@ -11,13 +11,13 @@ final List<Widget> myTabItems = [
   Center(child: Text('캘린더')),
 ];
 
-class Home extends StatefulWidget {
-  const Home({super.key});
+class TodoScreen extends StatefulWidget {
+  const TodoScreen({super.key});
   @override
-  State<Home> createState() => _HomeState();
+  State<TodoScreen> createState() => _TodoScreenState();
 }
 
-class _HomeState extends State<Home> {
+class _TodoScreenState extends State<TodoScreen> {
   int _selectedIndex = 0;
 
   void _onItemTapped(int index) {
