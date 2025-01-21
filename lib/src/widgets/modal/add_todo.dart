@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/category_data.dart';
 
 class AddTodo extends StatefulWidget {
   final Function(String title, String category, String date) onAdd;
@@ -20,9 +21,11 @@ class _AddTodoState extends State<AddTodo> {
       text: DateTime.now().month.toString().padLeft(2, '0'));
   final TextEditingController _dayController = TextEditingController(
       text: DateTime.now().day.toString().padLeft(2, '0'));
-  String _selectedCategory = "카테고리1";
 
-  final List<String> _categories = ["카테고리1", "카테고리2", "카테고리3"];
+  // 카테고리 데이터를 가져옴
+  final List<String> _categories =
+      categoryList.map((item) => item["title"].toString()).toList();
+  String _selectedCategory = categoryList.first["title"].toString();
 
   void _incrementDate() {
     int year = int.parse(_yearController.text);
@@ -49,7 +52,7 @@ class _AddTodoState extends State<AddTodo> {
   void _submit() {
     if (_titleController.text.isNotEmpty) {
       final date =
-          "${_yearController.text} ${_monthController.text} ${_dayController.text}";
+          "${_yearController.text}-${_monthController.text}-${_dayController.text}";
       widget.onAdd(
         _titleController.text,
         _selectedCategory,
@@ -67,6 +70,7 @@ class _AddTodoState extends State<AddTodo> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -82,8 +86,9 @@ class _AddTodoState extends State<AddTodo> {
               controller: _titleController,
               decoration: InputDecoration(
                 hintText: "할 일을 작성해주세요.",
+                hintStyle: TextStyle(color: Colors.grey),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: Color(0xFFECEDF4),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -106,7 +111,7 @@ class _AddTodoState extends State<AddTodo> {
               },
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: Color(0xFFECEDF4),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -123,7 +128,7 @@ class _AddTodoState extends State<AddTodo> {
                     decoration: InputDecoration(
                       hintText: "YYYY",
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Color(0xFFECEDF4),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -139,7 +144,7 @@ class _AddTodoState extends State<AddTodo> {
                     decoration: InputDecoration(
                       hintText: "MM",
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Color(0xFFECEDF4),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -155,7 +160,7 @@ class _AddTodoState extends State<AddTodo> {
                     decoration: InputDecoration(
                       hintText: "DD",
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Color(0xFFECEDF4),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
