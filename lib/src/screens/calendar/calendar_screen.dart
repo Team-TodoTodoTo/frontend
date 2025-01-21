@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../widgets/section_container.dart';
+import '../../shared/todo_data.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -12,13 +13,10 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
 
-  final Map<DateTime, List<String>> _events = {
-    DateTime.utc(2025, 1, 16): ['회의', '운동하기'],
-    DateTime.utc(2025, 1, 31): ['할일1', '할일2'],
-  };
-
-  List<String> _getEventsForDay(DateTime day) {
-    return _events[day] ?? [];
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    String formattedDate =
+        "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+    return todoList.where((todo) => todo["date"] == formattedDate).toList();
   }
 
   void _onPageChanged(DateTime newFocusedDay) {
@@ -181,27 +179,60 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         },
                         markerBuilder: (context, date, events) {
                           if (events.isNotEmpty) {
-                            return Wrap(
-                              spacing: 4,
-                              runSpacing: 2,
-                              children: events.map((event) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 4, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade300,
-                                    borderRadius: BorderRadius.circular(4),
+                            return Stack(
+                              children: [
+                                // 날짜 텍스트를 위한 여백 확보 (고정 높이)
+
+                                // 투두 항목들을 날짜 아래 배치
+                                Positioned(
+                                  top: 60, // 날짜 아래 여백 설정
+                                  left: 0,
+                                  right: 0,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start, // 투두 왼쪽 정렬
+                                    children: events.take(2).map((event) {
+                                      final todoText = (event as Map<String,
+                                              dynamic>?)?["todo"] ??
+                                          '';
+
+                                      return Container(
+                                        margin: const EdgeInsets.only(
+                                            top: 2), // 투두 항목 간격 조정
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 3),
+                                        constraints: BoxConstraints(
+                                          maxWidth: MediaQuery.of(context)
+                                                      .size
+                                                      .width /
+                                                  7 -
+                                              10, // 날짜 칸 크기 맞춤
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade300,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          todoText.length > 6
+                                              ? '${todoText.substring(0, 6)}...'
+                                              : todoText, // 길이 초과 처리
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            overflow: TextOverflow
+                                                .ellipsis, // 초과 텍스트 처리
+                                          ),
+                                          maxLines: 1, // 한 줄만 표시
+                                        ),
+                                      );
+                                    }).toList(),
                                   ),
-                                  child: Text(
-                                    event.toString(),
-                                    style: const TextStyle(
-                                        color: Colors.white, fontSize: 10),
-                                  ),
-                                );
-                              }).toList(),
+                                ),
+                              ],
                             );
                           }
-                          return null;
+                          return null; // 투두 항목이 없으면 아무것도 표시하지 않음
                         },
                       ),
                     ),

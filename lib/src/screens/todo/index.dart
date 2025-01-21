@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/section_container.dart';
-import '../../widgets/modal/add_todo.dart';
+import '../../shared/category_data.dart';
+import '../../shared/todo_data.dart';
 
 class TodoIndex extends StatefulWidget {
   const TodoIndex({super.key});
@@ -10,32 +11,12 @@ class TodoIndex extends StatefulWidget {
 }
 
 class _TodoIndexState extends State<TodoIndex> {
-  List<Map<String, dynamic>> tasks = [
-    {"title": "자고 싶어요", "subtitle": "카테고리 이름", "isChecked": true},
-    {"title": "언제 다 해", "subtitle": "카테고리 이름", "isChecked": false},
-  ];
+  late List<Map<String, dynamic>> todos;
 
-  void _toggleTask(int index) {
-    setState(() {
-      tasks[index]['isChecked'] = !tasks[index]['isChecked'];
-    });
-  }
-
-  void _showAddTaskModal() {
-    showDialog(
-      context: context,
-      builder: (context) => AddTodo(
-        onAdd: (title, category, date) {
-          setState(() {
-            tasks.add({
-              "title": title,
-              "subtitle": category,
-              "isChecked": false,
-            });
-          });
-        },
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    todos = List<Map<String, dynamic>>.from(todoList);
   }
 
   @override
@@ -43,38 +24,43 @@ class _TodoIndexState extends State<TodoIndex> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20, top: 10), // 간격 추가
-          child: SectionContainer(
-            title: "오늘",
-            date: "1.16. (목)",
-            children: [_buildAddTaskButton()],
-          ),
-        ),
         SectionContainer(
-          title: "이번주 할일",
+          title: "오늘의 할 일",
+          date: "1.16. (목)",
+          children: _buildTaskList("2025-01-16"),
+        ),
+        const SizedBox(height: 16),
+        SectionContainer(
+          title: "이번 주 할 일",
           date: "1.13. ~ 1.19.",
-          children: [
-            ...tasks.asMap().entries.map((entry) {
-              int index = entry.key;
-              var task = entry.value;
-              return _buildTaskItem(
-                  index, task["title"], task["subtitle"], task["isChecked"]);
-            }),
-            _buildAddTaskButton(),
-          ],
+          children: _buildTaskListForWeek(["2025-01-16", "2025-01-18"]),
         ),
       ],
     );
   }
 
-  Widget _buildTaskItem(
-      int index, String title, String subtitle, bool isChecked) {
+  List<Widget> _buildTaskList(String date) {
+    final filteredTodos = todos.where((todo) => todo['date'] == date).toList();
+    return filteredTodos.map((task) => _buildTaskItem(task)).toList();
+  }
+
+  List<Widget> _buildTaskListForWeek(List<String> dates) {
+    final filteredTodos =
+        todos.where((todo) => dates.contains(todo['date'])).toList();
+    return filteredTodos.map((task) => _buildTaskItem(task)).toList();
+  }
+
+  Widget _buildTaskItem(Map<String, dynamic> task) {
+    final category = categoryList.firstWhere(
+      (cat) => cat['id'] == task['categoryId'],
+      orElse: () => {"title": "알 수 없음"},
+    );
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade100,
+        color: task["isCompleted"] ? Colors.blue.shade50 : Colors.blue.shade100,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -84,26 +70,26 @@ class _TodoIndexState extends State<TodoIndex> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  task["todo"],
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    decoration: isChecked
+                    decoration: task["isCompleted"]
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
                   ),
                 ),
                 Text(
-                  subtitle,
+                  category["title"],
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
               ],
             ),
           ),
           Checkbox(
-            value: isChecked,
+            value: task["isCompleted"] ?? false,
             onChanged: (value) {
-              _toggleTask(index);
+              _toggleTaskCompletion(task);
             },
           ),
         ],
@@ -111,26 +97,15 @@ class _TodoIndexState extends State<TodoIndex> {
     );
   }
 
-  Widget _buildAddTaskButton() {
-    return Material(
-      color: Colors.transparent, // 배경 투명 설정
-      child: InkWell(
-        onTap: _showAddTaskModal,
-        borderRadius: BorderRadius.circular(12), // 클릭 이펙트를 버튼 모양에 맞춤
-        splashColor: Colors.blue.shade200, // 클릭 시 물결 효과 색상
-        highlightColor: Colors.blue.shade50, // 클릭 시 강조 색상
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(
-            child: Text("+ 할 일을 추가하세요.", style: TextStyle(color: Colors.grey)),
-          ),
-        ),
-      ),
-    );
+  void _toggleTaskCompletion(Map<String, dynamic> task) {
+    setState(() {
+      final index = todos.indexWhere((t) => t == task);
+      if (index != -1) {
+        todos[index] = {
+          ...task,
+          "isCompleted": !task["isCompleted"],
+        };
+      }
+    });
   }
 }
