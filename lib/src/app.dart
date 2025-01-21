@@ -13,6 +13,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: Get.key,
       initialRoute: '/login', // 초기 경로를 로그인 페이지로 설정
+
       getPages: [
         GetPage(name: '/', page: () => const MainLayout()),
         GetPage(name: '/login', page: () => LoginPage()), // 로그인 페이지

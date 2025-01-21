@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,8 +16,9 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
 
   bool isFormValid = false;
+  bool isLoading = false;
 
-  // 이메일 유효성 검사 함수
+  // 이메일 유효성 검사
   bool isValidEmail(String email) {
     final RegExp emailRegExp = RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
@@ -22,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
     return emailRegExp.hasMatch(email);
   }
 
-  // 입력 필드 상태 변경 감지 및 버튼 활성화 로직
+  // 입력 필드 상태 감지
   void _validateForm() {
     setState(() {
       isFormValid = isValidEmail(emailController.text.trim()) &&
@@ -44,6 +48,57 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _login() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    const String apiUrl = 'http://localhost:4000/auth/login';
+
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final Map<String, String> body = {
+      "email": emailController.text.trim(),
+      "password": passwordController.text.trim(),
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final String accessToken = responseData['accessToken'];
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('accessToken', accessToken);
+
+        Get.snackbar('로그인 성공', '환영합니다!',
+            backgroundColor: Colors.green.shade100,
+            snackPosition: SnackPosition.BOTTOM);
+
+        Get.offNamed('/');
+      } else {
+        Get.snackbar('로그인 실패', '이메일 또는 비밀번호가 올바르지 않습니다.',
+            backgroundColor: Colors.red.shade100,
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      Get.snackbar('오류 발생', '서버와의 통신에 실패했습니다.',
+          backgroundColor: Colors.red.shade100,
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -54,69 +109,14 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 100),
-            const Text(
-              '정보입력',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
+            const Text('로그인',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 80),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '이메일',
-                style: TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-            ),
-            TextFormField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                border: const UnderlineInputBorder(),
-                hintText: '이메일을 입력하세요',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '비밀번호',
-                style: TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-            ),
-            TextFormField(
-              controller: passwordController,
-              obscureText: true,
-              obscuringCharacter: '*',
-              decoration: InputDecoration(
-                border: const UnderlineInputBorder(),
-                hintText: '비밀번호를 입력하세요',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-              ),
-            ),
+            _buildInputField('이메일', emailController, false),
+            _buildInputField('비밀번호', passwordController, true),
             const SizedBox(height: 60),
             ElevatedButton(
-              onPressed: isFormValid
-                  ? () {
-                      String email = emailController.text.trim();
-                      String password = passwordController.text.trim();
-
-                      if (!isValidEmail(email)) {
-                        Get.snackbar(
-                          '입력 오류',
-                          '유효한 이메일을 입력하세요.',
-                          backgroundColor: Colors.red.shade100,
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
-                      } else {
-                        // 유효한 이메일 및 비밀번호 입력 시 홈 화면으로 이동
-                        Get.offNamed('/');
-                      }
-                    }
-                  : null,
+              onPressed: isFormValid && !isLoading ? _login : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: isFormValid
                     ? const Color(0xFF397EC3)
@@ -127,24 +127,41 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 minimumSize: const Size(double.infinity, 50),
               ),
-              child: const Text(
-                '로그인',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
+              child: isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('로그인',
+                      style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
             const SizedBox(height: 10),
             TextButton(
-              onPressed: () {
-                Get.toNamed('/signin'); // 회원가입 페이지로 이동
-              },
-              child: const Text(
-                '회원가입 하러가기',
-                style: TextStyle(fontSize: 14, color: Colors.black45),
-              ),
+              onPressed: () => Get.toNamed('/signin'),
+              child: const Text('회원가입 하러가기',
+                  style: TextStyle(fontSize: 14, color: Colors.black45)),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInputField(
+      String label, TextEditingController controller, bool obscureText) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          decoration: InputDecoration(
+            border: const UnderlineInputBorder(),
+            hintText: '$label을 입력하세요',
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

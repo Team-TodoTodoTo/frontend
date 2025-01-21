@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SigninPage extends StatefulWidget {
   const SigninPage({super.key});
@@ -16,6 +18,7 @@ class _SigninPageState extends State<SigninPage> {
       TextEditingController();
 
   bool isFormValid = false;
+  bool isLoading = false;
 
   // 이메일 유효성 검사 함수
   bool isValidEmail(String email) {
@@ -55,133 +58,144 @@ class _SigninPageState extends State<SigninPage> {
     super.dispose();
   }
 
+  Future<void> _signup() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    const String url = 'http://localhost:4000/auth/signup';
+
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final Map<String, dynamic> body = {
+      "email": emailController.text.trim(),
+      "password": passwordController.text.trim(),
+      "nickname": nameController.text.trim(),
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 201) {
+        Get.snackbar(
+          '가입 완료',
+          '회원가입이 완료되었습니다.',
+          backgroundColor: Colors.green.shade100,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        Get.offNamed('/login');
+      } else {
+        final responseData = jsonDecode(response.body);
+        Get.snackbar(
+          '가입 실패',
+          responseData['message'] ?? '회원가입에 실패했습니다.',
+          backgroundColor: Colors.red.shade100,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        '오류',
+        '서버와의 통신에 실패했습니다.',
+        backgroundColor: Colors.red.shade100,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 100),
-            const Text(
-              '정보입력',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 50),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '이름',
-                style: TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-            ),
-            TextFormField(
-              controller: nameController,
-              decoration: InputDecoration(
-                hintText: '홍길동',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                border: const UnderlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '이메일',
-                style: TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-            ),
-            TextFormField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                hintText: 'abcde@gmail.com',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                border: const UnderlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '비밀번호',
-                style: TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-            ),
-            TextFormField(
-              controller: passwordController,
-              obscureText: true,
-              obscuringCharacter: '*',
-              decoration: InputDecoration(
-                hintText: '비밀번호 (8자 이상)',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                border: const UnderlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: const Text(
-                '비밀번호 확인',
-                style: TextStyle(fontSize: 13, color: Colors.black87),
-              ),
-            ),
-            TextFormField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              obscuringCharacter: '*',
-              decoration: InputDecoration(
-                hintText: '비밀번호 확인',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                border: const UnderlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: isFormValid
-                  ? () {
-                      Get.snackbar(
-                        '가입 완료',
-                        '회원가입이 완료되었습니다.',
-                        backgroundColor: Colors.green.shade100,
-                        snackPosition: SnackPosition.BOTTOM,
-                      );
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isFormValid
-                    ? const Color(0xFF397EC3)
-                    : Colors.grey.shade300,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                '정보입력',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-                minimumSize: const Size(double.infinity, 50),
               ),
-              child: const Text(
-                '가입하기',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+              const SizedBox(height: 50),
+              _buildInputField('이름', '홍길동', nameController),
+              _buildInputField('이메일', 'abcde@gmail.com', emailController),
+              _buildInputField('비밀번호', '비밀번호 (8자 이상)', passwordController,
+                  obscureText: true),
+              _buildInputField('비밀번호 확인', '비밀번호 확인', confirmPasswordController,
+                  obscureText: true),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: isFormValid && !isLoading ? _signup : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isFormValid
+                      ? const Color(0xFF397EC3)
+                      : Colors.grey.shade300,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        '가입하기',
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
               ),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () {
-                Get.offNamed('/login'); // 로그인 페이지로 이동
-              },
-              child: const Text(
-                '닫기',
-                style: TextStyle(fontSize: 16, color: Colors.black87),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Get.offNamed('/login'); // 로그인 페이지로 이동
+                },
+                child: const Text(
+                  '닫기',
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInputField(
+      String label, String hint, TextEditingController controller,
+      {bool obscureText = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: Colors.black87),
+        ),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            border: const UnderlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
