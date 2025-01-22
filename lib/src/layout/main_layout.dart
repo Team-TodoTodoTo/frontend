@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/todo/todo_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
+import '../widgets/modal/edit_category.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -23,6 +24,14 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
+  // 카테고리 추가 모달 띄우기
+  void _showCategoryModal() {
+    showDialog(
+      context: context,
+      builder: (context) => const EditCategoryModal(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,6 +43,12 @@ class _MainLayoutState extends State<MainLayout> {
               color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: const Color(0xFFF5F7FD),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.black),
+            onPressed: _showCategoryModal,
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
           child: Container(
