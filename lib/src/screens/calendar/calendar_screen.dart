@@ -5,6 +5,7 @@ import '../../widgets/section_container.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/modal/daily_todo.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -43,9 +44,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final String formattedEndDate =
         "${endOfMonth.year}-${endOfMonth.month.toString().padLeft(2, '0')}-${endOfMonth.day.toString().padLeft(2, '0')}";
 
-    print('조회할 달의 시작 날짜: $formattedStartDate');
-    print('조회할 달의 끝 날짜: $formattedEndDate');
-
     final Uri url = Uri.parse('http://localhost:4000/todos/month')
         .replace(queryParameters: {
       'startDate': formattedStartDate,
@@ -69,8 +67,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(response.body);
 
-        print('서버 응답 데이터: $responseData'); // 응답 데이터 로깅
-
         setState(() {
           monthlyTodos.clear(); // 기존 데이터를 초기화
           for (var item in responseData) {
@@ -92,8 +88,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             }
           }
         });
-
-        print('처리된 투두 데이터: $monthlyTodos'); // 디버깅 확인
       } else {
         throw Exception('투두 목록을 불러오지 못했습니다. 상태 코드: ${response.statusCode}');
       }
@@ -110,6 +104,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String formattedDate = DateFormat('yyyy-MM-dd').format(day);
 
     return monthlyTodos[formattedDate] ?? [];
+  }
+
+  void _showTodosForDay(DateTime selectedDay) {
+    final todos = _getEventsForDay(selectedDay);
+
+    showDialog(
+      context: context,
+      builder: (context) => DailyTodoModal(
+        selectedDate: selectedDay,
+        todos: todos,
+      ),
+    );
   }
 
   void _onPageChanged(DateTime newFocusedDay) {
@@ -193,6 +199,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         startingDayOfWeek: StartingDayOfWeek.sunday,
                         headerVisible: false,
                         rowHeight: rowHeight, // 동적으로 계산된 날짜 박스 높이 적용
+                        selectedDayPredicate: (day) {
+                          return isSameDay(day, _focusedDay);
+                        },
+                        onDaySelected: (selectedDay, focusedDay) {
+                          _showTodosForDay(selectedDay);
+                          setState(() {
+                            _focusedDay = focusedDay;
+                          });
+                        },
                         onPageChanged: (focusedDay) {
                           _onPageChanged(focusedDay);
                         },
@@ -235,10 +250,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 color: Colors.red); // 일요일 빨간색
                           }
 
-                          return Center(
-                            child: Text(
-                              '${day.day}', // 날짜 숫자 표시
-                              style: textStyle,
+                          return InkWell(
+                            onTap: () => _showTodosForDay(day),
+                            child: Center(
+                              child: Text(
+                                '${day.day}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.normal,
+                                  color: isSameDay(day, DateTime.now())
+                                      ? Colors.white
+                                      : Colors.black,
+                                ),
+                              ),
                             ),
                           );
                         },

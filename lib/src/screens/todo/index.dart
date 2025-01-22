@@ -226,12 +226,7 @@ class _TodoIndexState extends State<TodoIndex> {
   }
 
   String _getCategoryTitle(int? categoryId) {
-    if (categoryId == null) return "알 수 없음";
-    final category = categoryList.firstWhere(
-      (item) => item["id"] == categoryId,
-      orElse: () => {"title": "알 수 없음"},
-    );
-    return category["title"] ?? "알 수 없음";
+    return categoryId != null ? "카테고리 ID: $categoryId" : "알 수 없음";
   }
 
   bool _isToday(String? dateString) {
