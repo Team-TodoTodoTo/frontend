@@ -72,19 +72,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
         print('서버 응답 데이터: $responseData'); // 응답 데이터 로깅
 
         setState(() {
-          monthlyTodos = {
-            for (var item in responseData)
-              DateFormat('yyyy-MM-dd')
-                      .format(DateTime.parse(item["date"]).toLocal()):
-                  List<Map<String, dynamic>>.from([
-                {
-                  "id": item["id"],
-                  "todo": item["todo"],
-                  "categoryId": item["categoryId"],
-                  "isCompleted": item["isCompleted"] == 1 ? true : false,
-                }
-              ])
-          };
+          monthlyTodos.clear(); // 기존 데이터를 초기화
+          for (var item in responseData) {
+            String formattedDate = DateFormat('yyyy-MM-dd')
+                .format(DateTime.parse(item["date"]).toLocal());
+
+            // 기존 투두가 있으면 추가, 없으면 새 리스트 생성
+            if (!monthlyTodos.containsKey(formattedDate)) {
+              monthlyTodos[formattedDate] = [];
+            }
+
+            if (monthlyTodos[formattedDate]!.length < 3) {
+              monthlyTodos[formattedDate]!.add({
+                "id": item["id"],
+                "todo": item["todo"],
+                "categoryId": item["categoryId"],
+                "isCompleted": item["isCompleted"] == 1 ? true : false,
+              });
+            }
+          }
         });
 
         print('처리된 투두 데이터: $monthlyTodos'); // 디버깅 확인
@@ -213,118 +219,106 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         return events;
                       },
                       calendarBuilders: CalendarBuilders(
-                        defaultBuilder: (context, day, focusedDay) {
-                          TextStyle textStyle = const TextStyle(
-                            fontSize: 12, // 날짜 크기 조정
-                            fontWeight: FontWeight.normal,
-                            color: Colors.black, // 기본 날짜 색상
-                          );
+                          defaultBuilder: (context, day, focusedDay) {
+                        TextStyle textStyle = const TextStyle(
+                          fontSize: 12, // 날짜 크기 조정
+                          fontWeight: FontWeight.normal,
+                          color: Colors.black, // 기본 날짜 색상
+                        );
 
-                          if (day.weekday == DateTime.saturday) {
-                            textStyle = textStyle.copyWith(
-                                color: Colors.blue); // 토요일 파란색
-                          } else if (day.weekday == DateTime.sunday) {
-                            textStyle = textStyle.copyWith(
-                                color: Colors.red); // 일요일 빨간색
-                          }
+                        if (day.weekday == DateTime.saturday) {
+                          textStyle =
+                              textStyle.copyWith(color: Colors.blue); // 토요일 파란색
+                        } else if (day.weekday == DateTime.sunday) {
+                          textStyle =
+                              textStyle.copyWith(color: Colors.red); // 일요일 빨간색
+                        }
 
-                          return Center(
-                            child: Text(
-                              '${day.day}', // 날짜 숫자 표시
-                              style: textStyle,
+                        return Center(
+                          child: Text(
+                            '${day.day}', // 날짜 숫자 표시
+                            style: textStyle,
+                          ),
+                        );
+                      },
+
+                          // 요일(월~일) 스타일 변경
+                          dowBuilder: (context, day) {
+                        final textStyle = const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        );
+
+                        switch (day.weekday) {
+                          case DateTime.saturday:
+                            return Center(
+                                child: Text('토',
+                                    style: textStyle.copyWith(
+                                        color: Colors.blue)));
+                          case DateTime.sunday:
+                            return Center(
+                                child: Text('일',
+                                    style:
+                                        textStyle.copyWith(color: Colors.red)));
+                          case DateTime.monday:
+                            return Center(child: Text('월', style: textStyle));
+                          case DateTime.tuesday:
+                            return Center(child: Text('화', style: textStyle));
+                          case DateTime.wednesday:
+                            return Center(child: Text('수', style: textStyle));
+                          case DateTime.thursday:
+                            return Center(child: Text('목', style: textStyle));
+                          case DateTime.friday:
+                            return Center(child: Text('금', style: textStyle));
+                        }
+                        return null;
+                      }, markerBuilder: (context, date, events) {
+                        if (events.isNotEmpty) {
+                          return Positioned(
+                            top: 60, // 날짜 아래 여백 설정
+                            left: 0,
+                            right: 0,
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start, // 투두 왼쪽 정렬
+                              children: events.take(3).map((event) {
+                                final todoText =
+                                    (event as Map<String, dynamic>?)?["todo"] ??
+                                        '';
+
+                                return Container(
+                                  margin: const EdgeInsets.only(
+                                      top: 2), // 투두 항목 간격 조정
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 3),
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.of(context).size.width / 7 -
+                                            10, // 날짜 칸 크기 맞춤
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade300,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    todoText.length > 6
+                                        ? '${todoText.substring(0, 6)}...'
+                                        : todoText, // 길이 초과 처리
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      overflow:
+                                          TextOverflow.ellipsis, // 초과 텍스트 처리
+                                    ),
+                                    maxLines: 1, // 한 줄만 표시
+                                  ),
+                                );
+                              }).toList(),
                             ),
                           );
-                        },
-
-                        // 요일(월~일) 스타일 변경
-                        dowBuilder: (context, day) {
-                          final textStyle = const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          );
-
-                          switch (day.weekday) {
-                            case DateTime.saturday:
-                              return Center(
-                                  child: Text('토',
-                                      style: textStyle.copyWith(
-                                          color: Colors.blue)));
-                            case DateTime.sunday:
-                              return Center(
-                                  child: Text('일',
-                                      style: textStyle.copyWith(
-                                          color: Colors.red)));
-                            case DateTime.monday:
-                              return Center(child: Text('월', style: textStyle));
-                            case DateTime.tuesday:
-                              return Center(child: Text('화', style: textStyle));
-                            case DateTime.wednesday:
-                              return Center(child: Text('수', style: textStyle));
-                            case DateTime.thursday:
-                              return Center(child: Text('목', style: textStyle));
-                            case DateTime.friday:
-                              return Center(child: Text('금', style: textStyle));
-                          }
-                          return null;
-                        },
-                        markerBuilder: (context, date, events) {
-                          if (events.isNotEmpty) {
-                            return Stack(
-                              children: [
-                                // 날짜 텍스트를 위한 여백 확보 (고정 높이)
-
-                                // 투두 항목들을 날짜 아래 배치
-                                Positioned(
-                                  top: 60, // 날짜 아래 여백 설정
-                                  left: 0,
-                                  right: 0,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start, // 투두 왼쪽 정렬
-                                    children: events.take(2).map((event) {
-                                      final todoText = (event as Map<String,
-                                              dynamic>?)?["todo"] ??
-                                          '';
-
-                                      return Container(
-                                        margin: const EdgeInsets.only(
-                                            top: 2), // 투두 항목 간격 조정
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 3),
-                                        constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context)
-                                                      .size
-                                                      .width /
-                                                  7 -
-                                              10, // 날짜 칸 크기 맞춤
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.shade300,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          todoText.length > 6
-                                              ? '${todoText.substring(0, 6)}...'
-                                              : todoText, // 길이 초과 처리
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            overflow: TextOverflow
-                                                .ellipsis, // 초과 텍스트 처리
-                                          ),
-                                          maxLines: 1, // 한 줄만 표시
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          return null; // 투두 항목이 없으면 아무것도 표시하지 않음
-                        },
-                      ),
+                        }
+                        return null; // 투두 항목이 없으면 아무것도 표시하지 않음
+                      }),
                     ),
                   ],
                 ),

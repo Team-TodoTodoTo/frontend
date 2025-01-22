@@ -205,14 +205,21 @@ class _TodoIndexState extends State<TodoIndex> {
             (item) => item["title"] == category,
             orElse: () => {"id": 1},
           );
+
+          // 새로운 투두 항목을 로컬 상태에 추가
           setState(() {
             tasks.add({
+              "id": DateTime.now().millisecondsSinceEpoch, // 임시 ID 생성
               "todo": title,
               "categoryId": categoryData["id"],
               "date": date,
               "isCompleted": false,
             });
           });
+
+          // 서버에서 최신 데이터를 다시 불러오기
+          _fetchDailyTasks();
+          _fetchWeeklyTasks();
         },
       ),
     );
