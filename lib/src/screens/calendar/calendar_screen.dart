@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../widgets/section_container.dart';
-import '../../shared/todo_data.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -12,11 +15,95 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
+  Map<String, List<Map<String, dynamic>>> monthlyTodos = {};
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMonthlyTodos();
+  }
+
+  Future<String?> getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('accessToken');
+  }
+
+  Future<void> _fetchMonthlyTodos() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    DateTime now = DateTime.now(); // 현재 날짜
+    DateTime startOfMonth = DateTime(now.year, now.month, 1);
+    DateTime endOfMonth = DateTime(now.year, now.month + 1, 0);
+
+    final String formattedStartDate =
+        "${startOfMonth.year}-${startOfMonth.month.toString().padLeft(2, '0')}-${startOfMonth.day.toString().padLeft(2, '0')}";
+    final String formattedEndDate =
+        "${endOfMonth.year}-${endOfMonth.month.toString().padLeft(2, '0')}-${endOfMonth.day.toString().padLeft(2, '0')}";
+
+    print('조회할 달의 시작 날짜: $formattedStartDate');
+    print('조회할 달의 끝 날짜: $formattedEndDate');
+
+    final Uri url = Uri.parse('http://localhost:4000/todos/month')
+        .replace(queryParameters: {
+      'startDate': formattedStartDate,
+      'endDate': formattedEndDate,
+    });
+
+    try {
+      final String? token = await getToken();
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+
+        print('서버 응답 데이터: $responseData'); // 응답 데이터 로깅
+
+        setState(() {
+          monthlyTodos = {
+            for (var item in responseData)
+              DateFormat('yyyy-MM-dd')
+                      .format(DateTime.parse(item["date"]).toLocal()):
+                  List<Map<String, dynamic>>.from([
+                {
+                  "id": item["id"],
+                  "todo": item["todo"],
+                  "categoryId": item["categoryId"],
+                  "isCompleted": item["isCompleted"] == 1 ? true : false,
+                }
+              ])
+          };
+        });
+
+        print('처리된 투두 데이터: $monthlyTodos'); // 디버깅 확인
+      } else {
+        throw Exception('투두 목록을 불러오지 못했습니다. 상태 코드: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('오류 발생: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
-    String formattedDate =
-        "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
-    return todoList.where((todo) => todo["date"] == formattedDate).toList();
+    String formattedDate = DateFormat('yyyy-MM-dd').format(day);
+
+    return monthlyTodos[formattedDate] ?? [];
   }
 
   void _onPageChanged(DateTime newFocusedDay) {
@@ -121,7 +208,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      eventLoader: (day) => _getEventsForDay(day),
+                      eventLoader: (day) {
+                        final events = _getEventsForDay(day);
+                        return events;
+                      },
                       calendarBuilders: CalendarBuilders(
                         defaultBuilder: (context, day, focusedDay) {
                           TextStyle textStyle = const TextStyle(
