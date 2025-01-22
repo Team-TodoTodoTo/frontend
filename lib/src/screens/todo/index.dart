@@ -1,9 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import '../../shared/category_data.dart';
 import '../../shared/todo_data.dart';
 import '../../widgets/section_container.dart';
 import '../../widgets/modal/add_todo.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> saveToken(String token) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setString('accessToken', token);
+}
+
+Future<String?> getToken() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getString('accessToken');
+}
 
 class TodoIndex extends StatefulWidget {
   const TodoIndex({super.key});
@@ -13,8 +27,8 @@ class TodoIndex extends StatefulWidget {
 }
 
 class _TodoIndexState extends State<TodoIndex> {
-  List<Map<String, dynamic>> tasks =
-      todoList.map((task) => Map<String, dynamic>.from(task)).toList();
+  List<Map<String, dynamic>> tasks = [];
+  bool isLoading = false;
 
   final DateTime today = DateTime.now();
 
@@ -27,6 +41,148 @@ class _TodoIndexState extends State<TodoIndex> {
     DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
     return "${DateFormat('M.d. (E)', 'ko').format(startOfWeek)} ~ "
         "${DateFormat('M.d. (E)', 'ko').format(endOfWeek)}";
+  }
+
+  // 일간 투두 조회
+  Future<void> _fetchDailyTasks() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final String formattedDate = DateFormat('yyyy-MM-dd').format(today);
+
+    final Uri url =
+        Uri.parse('http://localhost:4000/todos/day').replace(queryParameters: {
+      'date': formattedDate,
+    });
+
+    try {
+      final String? token = await getToken();
+
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+
+        setState(() {
+          tasks = responseData.map<Map<String, dynamic>>((item) {
+            DateTime parsedDate = DateTime.parse(item["date"]).toLocal();
+            String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+
+            return {
+              "id": item["id"],
+              "todo": item["todo"],
+              "categoryId": item["categoryId"],
+              "date": formattedDate,
+              "isCompleted": item["isCompleted"] == 1 ? true : false,
+            };
+          }).toList();
+        });
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('인증이 필요합니다. 다시 로그인하세요.')),
+        );
+        Get.offNamed('/login'); // 로그인 페이지로 이동
+      } else {
+        throw Exception('오늘의 할 일을 불러오지 못했습니다. 오류 코드: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('오류 발생: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('데이터를 불러오는데 실패했습니다. 오류: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // 주간 투두 조회
+  Future<void> _fetchWeeklyTasks() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    DateTime startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+    DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
+
+    final String formattedStartDate =
+        DateFormat('yyyy-MM-dd').format(startOfWeek);
+    final String formattedEndDate = DateFormat('yyyy-MM-dd').format(endOfWeek);
+
+    final Uri url =
+        Uri.parse('http://localhost:4000/todos/week').replace(queryParameters: {
+      'startDate': formattedStartDate,
+      'endDate': formattedEndDate,
+    });
+
+    try {
+      final String? token = await getToken(); // 저장된 토큰 불러오기
+
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        setState(() {
+          tasks = responseData.map<Map<String, dynamic>>((item) {
+            DateTime parsedDate = DateTime.parse(item["date"]).toLocal();
+            String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+
+            return {
+              "id": item["id"],
+              "todo": item["todo"],
+              "categoryId": item["categoryId"],
+              "date": formattedDate,
+              "isCompleted": item["isCompleted"] == 1 ? true : false,
+            };
+          }).toList();
+        });
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('인증이 필요합니다. 다시 로그인하세요.')),
+        );
+        Get.offNamed('/login'); // 로그인 페이지로 이동
+      } else {
+        throw Exception('할 일을 불러오지 못했습니다. 오류 코드: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('오류 발생: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('데이터를 불러오는데 실패했습니다. 오류: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDailyTasks();
+    _fetchWeeklyTasks();
   }
 
   void _toggleTask(int index) {
@@ -74,53 +230,55 @@ class _TodoIndexState extends State<TodoIndex> {
   bool _isToday(String? dateString) {
     if (dateString == null) return false;
     try {
-      DateTime taskDate = DateTime.parse(dateString);
-      return taskDate.year == today.year &&
-          taskDate.month == today.month &&
-          taskDate.day == today.day;
+      return dateString == DateFormat('yyyy-MM-dd').format(today);
     } catch (e) {
+      print("날짜 파싱 오류: $e");
       return false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20, top: 10),
-          child: SectionContainer(
-            title: "오늘",
-            date: getFormattedDate(today),
+    return isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              ...tasks.where((task) => _isToday(task["date"])).map((task) {
-                return _buildTaskItem(
-                  task["todo"] as String? ?? "제목 없음",
-                  _getCategoryTitle(task["categoryId"] as int?),
-                  task["isCompleted"] as bool? ?? false,
-                );
-              }),
-              _buildAddTaskButton(),
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 20, top: 10),
+                  child: SectionContainer(
+                    title: "오늘",
+                    date: getFormattedDate(today),
+                    children: [
+                      ...tasks.where((task) {
+                        return task["date"] ==
+                            DateFormat('yyyy-MM-dd').format(today);
+                      }).map((task) {
+                        return _buildTaskItem(
+                          task["todo"] as String? ?? "제목 없음",
+                          _getCategoryTitle(task["categoryId"] as int?),
+                          task["isCompleted"] as bool? ?? false,
+                        );
+                      }),
+                      _buildAddTaskButton(),
+                    ],
+                  )),
+              SectionContainer(
+                title: "이번주 할일",
+                date: getWeekRange(),
+                children: [
+                  ...tasks.map((task) {
+                    return _buildTaskItem(
+                      task["todo"] as String? ?? "제목 없음",
+                      _getCategoryTitle(task["categoryId"] as int?),
+                      task["isCompleted"] as bool? ?? false,
+                    );
+                  }),
+                  _buildAddTaskButton(),
+                ],
+              ),
             ],
-          ),
-        ),
-        SectionContainer(
-          title: "이번주 할일",
-          date: getWeekRange(),
-          children: [
-            ...tasks.map((task) {
-              return _buildTaskItem(
-                task["todo"] as String? ?? "제목 없음",
-                _getCategoryTitle(task["categoryId"] as int?),
-                task["isCompleted"] as bool? ?? false,
-              );
-            }),
-            _buildAddTaskButton(),
-          ],
-        ),
-      ],
-    );
+          );
   }
 
   Widget _buildTaskItem(String title, String subtitle, bool isChecked) {
