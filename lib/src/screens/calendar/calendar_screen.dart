@@ -106,16 +106,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return monthlyTodos[formattedDate] ?? [];
   }
 
-  void _showTodosForDay(DateTime selectedDay) {
+  void _showTodosForDay(DateTime selectedDay) async {
     final todos = _getEventsForDay(selectedDay);
 
-    showDialog(
+    final updatedTodos = await showDialog<List<Map<String, dynamic>>>(
       context: context,
       builder: (context) => DailyTodoModal(
         selectedDate: selectedDay,
         todos: todos,
       ),
     );
+
+    if (updatedTodos != null) {
+      setState(() {
+        String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDay);
+        monthlyTodos[formattedDate] = updatedTodos;
+      });
+    }
   }
 
   void _onPageChanged(DateTime newFocusedDay) {

@@ -178,6 +178,57 @@ class _TodoIndexState extends State<TodoIndex> {
     }
   }
 
+  // 투두 수정
+  Future<void> _updateTodoStatus(
+      Map<String, dynamic> todo, bool newStatus) async {
+    final Uri url = Uri.parse('http://localhost:4000/todos/${todo["id"]}');
+
+    final String? token = await getToken();
+    if (token == null) {
+      print('로그인 필요 - 토큰 없음');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다. 다시 로그인하세요.')),
+      );
+      Get.offNamed('/login');
+      return;
+    }
+
+    final Map<String, dynamic> updatedTodo = {
+      "todo": todo["todo"],
+      "categoryId": todo["categoryId"],
+      "date": todo["date"],
+      "isCompleted": newStatus, // 불리언 값 유지
+    };
+
+    print('PUT 요청 보냄: $updatedTodo'); // 요청 로그 확인
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(updatedTodo),
+      );
+
+      if (response.statusCode == 200) {
+        final updatedData = jsonDecode(response.body);
+        print(
+            '서버 업데이트 성공: ${updatedData["id"]}, 상태=${updatedData["isCompleted"]}');
+      } else {
+        print(
+            '서버 업데이트 실패 - 상태 코드: ${response.statusCode}, 응답: ${response.body}');
+        throw Exception('서버 업데이트 실패');
+      }
+    } catch (e) {
+      print('서버 업데이트 중 오류 발생: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('상태 변경에 실패했습니다. 오류: $e')),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -185,15 +236,21 @@ class _TodoIndexState extends State<TodoIndex> {
     _fetchWeeklyTasks();
   }
 
-  void _toggleTask(int index) {
+  void _toggleTask(int index) async {
+    final task = tasks[index];
+    final bool newStatus = !task['isCompleted'];
+
+    print(
+        '투두 상태 변경 요청: ID=${task["id"]}, 현재 상태=${task["isCompleted"]}, 변경 상태=$newStatus');
+
     setState(() {
-      tasks = tasks.map((task) {
-        if (tasks.indexOf(task) == index) {
-          return {...task, 'isCompleted': !task['isCompleted']};
-        }
-        return task;
-      }).toList();
+      tasks[index] = {...task, "isCompleted": newStatus};
     });
+
+    await _updateTodoStatus(task, newStatus);
+
+    print(
+        '투두 상태 변경 완료: ID=${task["id"]}, 새로운 상태=${tasks[index]["isCompleted"]}');
   }
 
   void _showAddTaskModal() {
@@ -247,33 +304,43 @@ class _TodoIndexState extends State<TodoIndex> {
             padding: const EdgeInsets.all(16),
             children: [
               Padding(
-                  padding: const EdgeInsets.only(bottom: 20, top: 10),
-                  child: SectionContainer(
-                    title: "오늘",
-                    date: getFormattedDate(today),
-                    children: [
-                      ...tasks.where((task) {
-                        return task["date"] ==
-                            DateFormat('yyyy-MM-dd').format(today);
-                      }).map((task) {
-                        return _buildTaskItem(
-                          task["todo"] as String? ?? "제목 없음",
-                          _getCategoryTitle(task["categoryId"] as int?),
-                          task["isCompleted"] as bool? ?? false,
-                        );
-                      }),
-                      _buildAddTaskButton(),
-                    ],
-                  )),
+                padding: const EdgeInsets.only(bottom: 20, top: 10),
+                child: SectionContainer(
+                  title: "오늘",
+                  date: getFormattedDate(today),
+                  children: [
+                    ...tasks
+                        .asMap()
+                        .entries
+                        .where((entry) =>
+                            entry.value["date"] ==
+                            DateFormat('yyyy-MM-dd').format(today))
+                        .map((entry) {
+                      final index = entry.key;
+                      final task = entry.value;
+                      return _buildTaskItem(
+                        task["todo"] as String? ?? "제목 없음",
+                        _getCategoryTitle(task["categoryId"] as int?),
+                        task["isCompleted"] as bool? ?? false,
+                        index, // 인덱스를 전달
+                      );
+                    }),
+                    _buildAddTaskButton(),
+                  ],
+                ),
+              ),
               SectionContainer(
                 title: "이번주 할일",
                 date: getWeekRange(),
                 children: [
-                  ...tasks.map((task) {
+                  ...tasks.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final task = entry.value;
                     return _buildTaskItem(
                       task["todo"] as String? ?? "제목 없음",
                       _getCategoryTitle(task["categoryId"] as int?),
                       task["isCompleted"] as bool? ?? false,
+                      index,
                     );
                   }),
                   _buildAddTaskButton(),
@@ -283,7 +350,8 @@ class _TodoIndexState extends State<TodoIndex> {
           );
   }
 
-  Widget _buildTaskItem(String title, String subtitle, bool isChecked) {
+  Widget _buildTaskItem(
+      String title, String subtitle, bool isChecked, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -316,9 +384,8 @@ class _TodoIndexState extends State<TodoIndex> {
           ),
           Checkbox(
             value: isChecked,
-            onChanged: (value) {
-              final index = tasks.indexWhere((task) => task["todo"] == title);
-              _toggleTask(index);
+            onChanged: (value) async {
+              _toggleTask(index); // 상태 업데이트 대기 후 진행
             },
           ),
         ],
