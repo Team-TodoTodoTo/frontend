@@ -50,6 +50,7 @@ class _DailyTodoModalState extends State<DailyTodoModal> {
     final Map<String, dynamic> updatedTodo = {
       "todo": todo["todo"],
       "categoryId": todo["categoryId"],
+      "categoryTitle": todo["categoryTitle"],
       "date": todo["date"] ??
           DateFormat('yyyy-MM-dd').format(DateTime.now()), // null 방지
       "isCompleted": newStatus,
@@ -71,7 +72,10 @@ class _DailyTodoModalState extends State<DailyTodoModal> {
 
       if (response.statusCode == 200) {
         setState(() {
-          _todos[index]['isCompleted'] = newStatus;
+          _todos[index] = {
+            ..._todos[index],
+            'isCompleted': newStatus,
+          };
         });
         final updatedData = jsonDecode(response.body);
         print(
@@ -140,7 +144,7 @@ class _DailyTodoModalState extends State<DailyTodoModal> {
                                     ),
                                   ),
                                   Text(
-                                    '카테고리 ID: ${todo["categoryId"]}',
+                                    '${todo["categoryTitle"] ?? "카테고리 없음"}',
                                     style: TextStyle(
                                         fontSize: 13,
                                         color: Colors.grey.shade700),

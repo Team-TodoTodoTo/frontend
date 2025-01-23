@@ -197,12 +197,16 @@ class _TodoIndexState extends State<TodoIndex> {
       return;
     }
 
+    // 날짜 변환 (Flutter의 DateFormat을 사용하여 MySQL 호환 형식으로 변환)
+    final String formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss')
+        .format(DateTime.parse(todo["date"]).toLocal());
+
     final Map<String, dynamic> updatedTodo = {
       "todo": todo["todo"],
       "categoryId": todo["categoryId"],
       "categoryTitle": todo["categoryTitle"],
-      "date": todo["date"],
-      "isCompleted": newStatus, // 불리언 값 유지
+      "date": formattedDate, // 변환된 날짜 값
+      "isCompleted": newStatus ? 1 : 0, // MySQL의 tinyint 형식에 맞춤
     };
 
     print('PUT 요청 보냄: $updatedTodo'); // 요청 로그 확인

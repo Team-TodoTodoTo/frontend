@@ -82,7 +82,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               monthlyTodos[formattedDate]!.add({
                 "id": item["id"],
                 "todo": item["todo"],
-                "categoryId": item["categoryId"],
+                "categoryTitle": item["categoryTitle"] ?? "카테고리 없음",
                 "isCompleted": item["isCompleted"] == 1 ? true : false,
               });
             }
