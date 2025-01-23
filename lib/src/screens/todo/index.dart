@@ -43,14 +43,13 @@ class _TodoIndexState extends State<TodoIndex> {
         "${DateFormat('M.d. (E)', 'ko').format(endOfWeek)}";
   }
 
-  // 일간 투두 조회
+  // 일간 투두 조회 함수 수정
   Future<void> _fetchDailyTasks() async {
     setState(() {
       isLoading = true;
     });
 
     final String formattedDate = DateFormat('yyyy-MM-dd').format(today);
-
     final Uri url =
         Uri.parse('http://localhost:4000/todos/day').replace(queryParameters: {
       'date': formattedDate,
@@ -58,7 +57,6 @@ class _TodoIndexState extends State<TodoIndex> {
 
     try {
       final String? token = await getToken();
-
       if (token == null) {
         throw Exception('로그인이 필요합니다.');
       }
@@ -74,32 +72,40 @@ class _TodoIndexState extends State<TodoIndex> {
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(response.body);
 
+        if (responseData.isEmpty) {
+          print('일간 투두가 비어있음: $responseData');
+        } else {
+          print('일간 투두 응답 확인: $responseData');
+        }
+
         setState(() {
           tasks = responseData.map<Map<String, dynamic>>((item) {
-            DateTime parsedDate = DateTime.parse(item["date"]).toLocal();
-            String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+            final categoryTitle = item.containsKey("categoryTitle") &&
+                    item["categoryTitle"] != null
+                ? item["categoryTitle"]
+                : "카테고리 없음";
 
             return {
               "id": item["id"],
               "todo": item["todo"],
               "categoryId": item["categoryId"],
-              "date": formattedDate,
+              "categoryTitle": categoryTitle,
+              "date": DateFormat('yyyy-MM-dd')
+                  .format(DateTime.parse(item["date"]).toLocal()), // 로컬 시간 변환
               "isCompleted": item["isCompleted"] == 1 ? true : false,
             };
           }).toList();
+
+          print("업데이트된 tasks 리스트: $tasks"); // 로깅 추가
         });
-      } else if (response.statusCode == 401) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('인증이 필요합니다. 다시 로그인하세요.')),
-        );
-        Get.offNamed('/login'); // 로그인 페이지로 이동
       } else {
+        print('서버 응답 오류 (일간): ${response.statusCode}');
         throw Exception('오늘의 할 일을 불러오지 못했습니다. 오류 코드: ${response.statusCode}');
       }
     } catch (e) {
-      print('오류 발생: $e');
+      print('일간 투두 조회 오류 발생: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('데이터를 불러오는데 실패했습니다. 오류: $e')),
+        SnackBar(content: Text('오늘의 할 일을 불러오는데 실패했습니다. 오류: $e')),
       );
     } finally {
       setState(() {
@@ -108,7 +114,7 @@ class _TodoIndexState extends State<TodoIndex> {
     }
   }
 
-  // 주간 투두 조회
+// 주간 투두 조회 함수 수정
   Future<void> _fetchWeeklyTasks() async {
     setState(() {
       isLoading = true;
@@ -128,8 +134,7 @@ class _TodoIndexState extends State<TodoIndex> {
     });
 
     try {
-      final String? token = await getToken(); // 저장된 토큰 불러오기
-
+      final String? token = await getToken();
       if (token == null) {
         throw Exception('로그인이 필요합니다.');
       }
@@ -146,24 +151,23 @@ class _TodoIndexState extends State<TodoIndex> {
         final List<dynamic> responseData = jsonDecode(response.body);
         setState(() {
           tasks = responseData.map<Map<String, dynamic>>((item) {
-            DateTime parsedDate = DateTime.parse(item["date"]).toLocal();
-            String formattedDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+            final categoryTitle = item.containsKey("categoryTitle") &&
+                    item["categoryTitle"] != null
+                ? item["categoryTitle"]
+                : "카테고리 없음";
 
             return {
               "id": item["id"],
               "todo": item["todo"],
               "categoryId": item["categoryId"],
-              "date": formattedDate,
+              "categoryTitle": categoryTitle,
+              "date": item["date"],
               "isCompleted": item["isCompleted"] == 1 ? true : false,
             };
           }).toList();
         });
-      } else if (response.statusCode == 401) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('인증이 필요합니다. 다시 로그인하세요.')),
-        );
-        Get.offNamed('/login'); // 로그인 페이지로 이동
       } else {
+        print('서버 응답 오류: ${response.statusCode}');
         throw Exception('할 일을 불러오지 못했습니다. 오류 코드: ${response.statusCode}');
       }
     } catch (e) {
@@ -196,6 +200,7 @@ class _TodoIndexState extends State<TodoIndex> {
     final Map<String, dynamic> updatedTodo = {
       "todo": todo["todo"],
       "categoryId": todo["categoryId"],
+      "categoryTitle": todo["categoryTitle"],
       "date": todo["date"],
       "isCompleted": newStatus, // 불리언 값 유지
     };
@@ -269,6 +274,7 @@ class _TodoIndexState extends State<TodoIndex> {
               "id": DateTime.now().millisecondsSinceEpoch, // 임시 ID 생성
               "todo": title,
               "categoryId": categoryData["id"],
+              "categoryTitle": categoryData["title"],
               "date": date,
               "isCompleted": false,
             });
@@ -280,10 +286,6 @@ class _TodoIndexState extends State<TodoIndex> {
         },
       ),
     );
-  }
-
-  String _getCategoryTitle(int? categoryId) {
-    return categoryId != null ? "카테고리 ID: $categoryId" : "알 수 없음";
   }
 
   bool _isToday(String? dateString) {
@@ -313,14 +315,16 @@ class _TodoIndexState extends State<TodoIndex> {
                         .asMap()
                         .entries
                         .where((entry) =>
-                            entry.value["date"] ==
+                            DateFormat('yyyy-MM-dd').format(
+                                DateTime.parse(entry.value["date"])
+                                    .toLocal()) ==
                             DateFormat('yyyy-MM-dd').format(today))
                         .map((entry) {
                       final index = entry.key;
                       final task = entry.value;
                       return _buildTaskItem(
                         task["todo"] as String? ?? "제목 없음",
-                        _getCategoryTitle(task["categoryId"] as int?),
+                        task["categoryTitle"] as String? ?? "카테고리 없음",
                         task["isCompleted"] as bool? ?? false,
                         index, // 인덱스를 전달
                       );
@@ -338,7 +342,7 @@ class _TodoIndexState extends State<TodoIndex> {
                     final task = entry.value;
                     return _buildTaskItem(
                       task["todo"] as String? ?? "제목 없음",
-                      _getCategoryTitle(task["categoryId"] as int?),
+                      task["categoryTitle"] as String? ?? "카테고리 없음",
                       task["isCompleted"] as bool? ?? false,
                       index,
                     );
@@ -350,8 +354,9 @@ class _TodoIndexState extends State<TodoIndex> {
           );
   }
 
+  // UI에 적용 부분 수정
   Widget _buildTaskItem(
-      String title, String subtitle, bool isChecked, int index) {
+      String title, String categoryTitle, bool isChecked, int index) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -376,7 +381,7 @@ class _TodoIndexState extends State<TodoIndex> {
                   ),
                 ),
                 Text(
-                  subtitle,
+                  categoryTitle, // 카테고리 제목 표시
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
               ],
@@ -385,7 +390,7 @@ class _TodoIndexState extends State<TodoIndex> {
           Checkbox(
             value: isChecked,
             onChanged: (value) async {
-              _toggleTask(index); // 상태 업데이트 대기 후 진행
+              _toggleTask(index); // 상태 업데이트
             },
           ),
         ],
